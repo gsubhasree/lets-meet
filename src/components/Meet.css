@@ -1,4 +1,6 @@
 .flex-container {
+    height: calc(100% - 150px);
+    width: 100%;
     display: flex;
     flex-direction: row;
     align-items: center;
@@ -6,6 +8,17 @@
 }
 
 .container {
+    height: 100vh;
+    width: 80vw;
+    max-width: 80vw;
+    max-height: 100vh;
+
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+#container{
     height: 80vh;
     width: 80vw;
     max-width: 80vw;

@@ -1,10 +1,25 @@
 import React, { Component } from 'react';
-import "./Meet.css"
+
+import io from 'socket.io-client'
 
 import {Input, Button} from '@material-ui/core'
 
 import { Row } from 'reactstrap'
 import 'bootstrap/dist/css/bootstrap.css'
+import "./Meet.css"
+
+const server_url = "http://localhost:4001"
+
+var connections = {}
+//using ICE framework for connecting peers
+const peerConnectionConfig = {
+	'iceServers': [
+		{ 'urls': 'stun:stun.l.google.com:19302' },
+	]
+}
+var socket = null
+var socketId = null
+var elms = 0
 
 class Meet extends Component {
   	constructor (props) {
@@ -26,6 +41,7 @@ class Meet extends Component {
 
 		this.getPermissions()
 	}
+
 	//to get user permission for audio and video access
 	getPermissions = async () => {
 		try{
@@ -50,16 +66,20 @@ class Meet extends Component {
 			}
 		} catch(e) { console.log(e) }
 	}
+
 	//set availability of video and audio for the meet page
 	getMedia = () => {
 		this.setState({
 			video: this.videoPermitted,
 			audio: this.audioPermitted
 		}, () => {
-			//call function to stream 
+			//call function to stream own video 
 			this.getUserMedia()
+			//connect to the socket server
+			this.connectToSocketServer()
 		})
 	}
+
 	//media of user
 	getUserMedia = () => {
 		//check if the state variable is true and permission is also granted 
@@ -76,6 +96,7 @@ class Meet extends Component {
 			} catch (e) {}
 		}
 	}
+
 	//on success(state variables are true), stream the video 
 	getUserMediaSuccess = (stream) => {
 		try {
@@ -84,12 +105,38 @@ class Meet extends Component {
 
 		window.localStream = stream
 		this.localVideoref.current.srcObject = stream
+		
+	}
 
+	//connect to the socket server
+	connectToSocketServer = () => {
+		socket = io.connect(server_url, { secure: true })
+
+		socket.on('signal', this.gotMessageFromServer)
+
+		socket.on('connect', () => {
+			//emits join-call, url is passed
+			socket.emit('join-call', window.location.href)
+			socketId = socket.id
+
+			//when a user joins the connection(meet)
+			socket.on('user-joined', (id, clients) => {
+				clients.forEach((socketListId) => {
+					connections[socketListId] = new RTCPeerConnection(peerConnectionConfig)
+					// Wait for their ice candidate       
+					connections[socketListId].onicecandidate = function (event) {
+						if (event.candidate != null) {
+							socket.emit('signal', socketListId, JSON.stringify({ 'ice': event.candidate }))
+						}
+					}
+				})
+			})
+		})
 	}
 
 	//gets username from user input
 	handleUsername = (e) => this.setState({ username: e.target.value })
-	
+
 	//connects to the meet only if user enters username
 	connect = () =>{
 		if(this.state.username!=="")
@@ -102,6 +149,7 @@ class Meet extends Component {
 		return (
 			<div>
 				{this.state.isUsername === true ?
+					//page that asks for device permissions and username appears before joining meet
 					<div>
 						<div style={{background: "white", width: "30%", height: "auto", padding: "5px", minWidth: "400px",
 								textAlign: "center", margin: "auto", marginTop: "10px", justifyContent: "center"}}>
@@ -110,18 +158,20 @@ class Meet extends Component {
 							<Button variant="contained" color="primary" onClick={this.connect} style={{ margin: "10px" }}>Connect</Button>
 						</div>
 
-						<div className="container" style={{ justifyContent: "center", textAlign: "center" }}>
+						<div className="container-1" style={{ justifyContent: "center", textAlign: "center" }}>
 							<video id="my-video" ref={this.localVideoref} autoPlay muted style={{
 								borderStyle: "solid",borderColor: "#bdbdbd"}}></video>
 						</div>
 					</div>
 					:
+					//meet page
 					<div>
-						<div className="container">
+						<div className="container" id="#container">
+
 							<Row id="main" className="flex-container" style={{ margin: 0, padding: 0 }}>
 								<video id="my-video" ref={this.localVideoref} autoPlay muted style={{
-									borderStyle: "solid",borderColor: "#bdbdbd",
-								}}></video>
+									borderStyle: "solid",borderColor: "#bdbdbd",margin: "10px",objectFit: "fill",
+									width: "100%",height: "100%"}}></video>
 							</Row>
 						</div>
 					</div>
