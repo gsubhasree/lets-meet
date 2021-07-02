@@ -23,10 +23,10 @@
     "dev": "concurrently -n 'server,client' -c 'red,green'  \"nodemon app.js\" \"react-scripts start\"",
     "start": "NODE_ENV=production node app.js",
     "build": "react-scripts build",
-    "test": "react-scripts test",
     "eject": "react-scripts eject",
     "client": "react-scripts start",
-    "postinstall":"npm run build"
+    "heroku-postinstall": "npm run build",
+    "test": "NODE_ENV=test mocha --exit --recursive --timeout 10000"
   },
   "eslintConfig": {
     "extends": "react-app"
@@ -44,7 +44,10 @@
     ]
   },
   "devDependencies": {
+    "chai": "^4.3.4",
     "concurrently": "^6.2.0",
-    "nodemon": "^2.0.7"
+    "mocha": "^9.0.1",
+    "nodemon": "^2.0.7",
+    "request": "^2.88.2"
   }
 }

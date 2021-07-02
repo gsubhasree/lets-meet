@@ -11,6 +11,8 @@ var io = require('socket.io')(server)
 app.use(cors())
 app.use(bodyParser.json())
 
+app.get('/check', (_req, res)=>{res.status(200).send("Working")})
+
 if(process.env.NODE_ENV==='production'){
 	app.use(express.static(__dirname+"/build"))
 	app.get("*", (req, res) => {
@@ -47,6 +49,10 @@ io.on('connection', (socket) => {
 
 })
 
-server.listen(app.get('port'), () => {
-	console.log("listening on", app.get('port'))
-})
+if(process.env.NODE_ENV!=='test'){
+  server.listen(app.get('port'), () => {
+    console.log("listening on", app.get('port'))
+  })
+}
+
+module.exports = {server}
