@@ -8,7 +8,7 @@ import { Row } from 'reactstrap'
 import 'bootstrap/dist/css/bootstrap.css'
 import "./Meet.css"
 
-const server_url = "http://localhost:4001"
+const server_url = process.env.NODE_ENV === 'production' ? 'https://lets-vmeet.herokuapp.com/' : "http://localhost:4001"
 
 var connections = {}
 //using ICE framework for connecting peers

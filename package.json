@@ -25,7 +25,8 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "client": "react-scripts start"
+    "client": "react-scripts start",
+    "postinstall":"npm run buid"
   },
   "eslintConfig": {
     "extends": "react-app"
