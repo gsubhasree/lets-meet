@@ -39,6 +39,7 @@ class Meet extends Component {
 			username: "",
 		}
 
+		connections={}
 		this.getPermissions()
 	}
 
@@ -87,6 +88,7 @@ class Meet extends Component {
 		if ((this.state.video && this.videoPermitted) || (this.state.audio && this.audioPermitted)) {
 			navigator.mediaDevices.getUserMedia({ video: this.state.video, audio: this.state.audio })
 				.then(this.getUserMediaSuccess)
+				.then((stream) => {})
 				.catch((e) => console.log(e))
 		} else {
 			try {
@@ -106,6 +108,79 @@ class Meet extends Component {
 		window.localStream = stream
 		this.localVideoref.current.srcObject = stream
 		
+		//to stream for all connections
+		for (let id in connections) {
+			if (id === socketId) continue
+
+			connections[id].addStream(window.localStream)
+
+			connections[id].createOffer().then((description) => {
+				connections[id].setLocalDescription(description)
+					.then(() => {
+						socket.emit('signal', id, JSON.stringify({ 'sdp': connections[id].localDescription }))
+					})
+					.catch(e => console.log(e))
+			})
+		}
+
+	}
+
+	//on receiving signal from server
+	gotMessageFromServer = (fromId, message) => {
+		var signal = JSON.parse(message)
+		//as communication is betwwen 2 different ids
+		if (fromId !== socketId) {
+			//set up session description protocol
+			if (signal.sdp) {
+				connections[fromId].setRemoteDescription(new RTCSessionDescription(signal.sdp)).then(() => {
+					if (signal.sdp.type === 'offer') {
+						connections[fromId].createAnswer().then((description) => {
+							connections[fromId].setLocalDescription(description).then(() => {
+								socket.emit('signal', fromId, JSON.stringify({ 'sdp': connections[fromId].localDescription }))
+							}).catch(e => console.log(e))
+						}).catch(e => console.log(e))
+					}
+				}).catch(e => console.log(e))
+			}
+			// add ice candidate
+			if (signal.ice) {
+				connections[fromId].addIceCandidate(new RTCIceCandidate(signal.ice)).catch(e => console.log(e))
+			}
+		}
+	}
+
+	changeCssVideos = (main) => {
+		let widthMain = main.offsetWidth
+		let minWidth = "30%"
+		if ((widthMain * 30 / 100) < 300) {
+			minWidth = "300px"
+		}
+		let minHeight = "40%"
+		//set height and width according to no. of connections
+		let height = String(100 / elms) + "%"
+		let width = ""
+		if(elms === 0 || elms === 1) {
+			width = "100%"
+			height = "100%"
+		} else if (elms === 2) {
+			width = "45%"
+			height = "100%"
+		} else if (elms === 3 || elms === 4) {
+			width = "35%"
+			height = "50%"
+		} else {
+			width = String(100 / elms) + "%"
+		}
+
+		let videos = main.querySelectorAll("video")
+		for (let a = 0; a < videos.length; ++a) {
+			videos[a].style.minWidth = minWidth
+			videos[a].style.minHeight = minHeight
+			videos[a].style.setProperty("width", width)
+			videos[a].style.setProperty("height", height)
+		}
+
+		return {minWidth, minHeight, width, height}
 	}
 
 	//connect to the socket server
@@ -118,7 +193,7 @@ class Meet extends Component {
 			//emits join-call, url is passed
 			socket.emit('join-call', window.location.href)
 			socketId = socket.id
-
+			
 			//when a user joins the connection(meet)
 			socket.on('user-joined', (id, clients) => {
 				clients.forEach((socketListId) => {
@@ -129,7 +204,59 @@ class Meet extends Component {
 							socket.emit('signal', socketListId, JSON.stringify({ 'ice': event.candidate }))
 						}
 					}
+
+					// Wait for their video stream
+					connections[socketListId].onaddstream = (event) => {
+						// TODO mute button, full screen button
+						var searchVideo = document.querySelector(`[data-socket="${socketListId}"]`)
+						if (searchVideo !== null) { // if i don't do this check it makes an empty square
+							searchVideo.srcObject = event.stream
+						} else {
+							elms = clients.length
+							let main = document.getElementById('main')
+							let cssProperty = this.changeCssVideos(main)
+
+							let video = document.createElement('video')
+
+							let css = {minWidth: cssProperty.minWidth, minHeight: cssProperty.minHeight, maxHeight: "100%", margin: "10px",
+								borderStyle: "solid", borderColor: "#bdbdbd", objectFit: "fill"}
+							for(let i in css) video.style[i] = css[i]
+
+							video.style.setProperty("width", cssProperty.width)
+							video.style.setProperty("height", cssProperty.height)
+							video.setAttribute('data-socket', socketListId)
+							video.srcObject = event.stream
+							video.autoplay = true
+							video.playsinline = true
+							//add the video to the screen
+							main.appendChild(video)
+						}
+					}
+
+					// Add the local video stream
+					if (window.localStream !== undefined && window.localStream !== null) {
+						connections[socketListId].addStream(window.localStream)
+					} else {
+					}
 				})
+				//if we are the joined user 
+				if (id === socketId) {
+					for (let id2 in connections) {
+						if (id2 === socketId) continue
+						//add localstream to other connections
+						try {
+							connections[id2].addStream(window.localStream)
+						} catch(e) {}
+			
+						connections[id2].createOffer().then((description) => {
+							connections[id2].setLocalDescription(description)
+								.then(() => {
+									socket.emit('signal', id2, JSON.stringify({ 'sdp': connections[id2].localDescription }))
+								})
+								.catch(e => console.log(e))
+						})
+					}
+				}
 			})
 		})
 	}
