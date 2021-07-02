@@ -25,14 +25,16 @@ io.on('connection', (socket) => {
 		//adds the id to the connection
 		connections[path].push(socket.id)
 
-		timeOnline[socket.id] = new Date()
-
 		for(let a = 0; a < connections[path].length; ++a){
 			//for each id in the connection, emit event user-joined
 			io.to(connections[path][a]).emit("user-joined", socket.id, connections[path])
 		}
 
 		console.log(path, connections[path])
+	})
+
+	socket.on('signal', (toId, message) => {
+		io.to(toId).emit('signal', socket.id, message)
 	})
 
 })
