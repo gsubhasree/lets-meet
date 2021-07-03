@@ -2,8 +2,8 @@ import React, { Component } from 'react';
 
 import io from 'socket.io-client'
 
-import {Input, Button} from '@material-ui/core'
-
+import {IconButton, Input, Button} from '@material-ui/core'
+import CallEndIcon from '@material-ui/icons/CallEnd'
 import { Row } from 'reactstrap'
 import 'bootstrap/dist/css/bootstrap.css'
 import "./Meet.css"
@@ -258,9 +258,29 @@ class Meet extends Component {
 					}
 				}
 			})
+			//when a user leaves meeting
+			socket.on('user-left', (id) => {
+				let video = document.querySelector(`[data-socket="${id}"]`)
+				if (video !== null) {
+					elms--
+					//remove the user's video
+					video.parentNode.removeChild(video)
+
+					let main = document.getElementById('main')
+					//change the css properties of other videos
+					this.changeCssVideos(main)
+				}
+			})
 		})
 	}
-
+	//stop all the tracks and redirect to home page
+	handleEndCall = () => {
+		try {
+			let tracks = this.localVideoref.current.srcObject.getTracks()
+			tracks.forEach(track => track.stop())
+		} catch (e) {}
+		window.location.href = "/"
+	}
 	//gets username from user input
 	handleUsername = (e) => this.setState({ username: e.target.value })
 
@@ -293,6 +313,12 @@ class Meet extends Component {
 					:
 					//meet page
 					<div>
+						<div className="btn-down" style={{ backgroundColor: "whitesmoke", color: "whitesmoke", textAlign: "center" }}>
+							<IconButton style={{ color: "#f44336" }} onClick={this.handleEndCall}>
+								<CallEndIcon />
+							</IconButton>
+						</div>
+
 						<div className="container" id="#container">
 
 							<Row id="main" className="flex-container" style={{ margin: 0, padding: 0 }}>
