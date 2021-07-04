@@ -8,6 +8,8 @@ import VideocamIcon from '@material-ui/icons/Videocam'
 import VideocamOffIcon from '@material-ui/icons/VideocamOff'
 import MicIcon from '@material-ui/icons/Mic'
 import MicOffIcon from '@material-ui/icons/MicOff'
+import ScreenShareIcon from '@material-ui/icons/ScreenShare'
+import StopScreenShareIcon from '@material-ui/icons/StopScreenShare'
 import { Row } from 'reactstrap'
 import 'bootstrap/dist/css/bootstrap.css'
 import "./Meet.css"
@@ -47,7 +49,7 @@ class Meet extends Component {
 		this.getPermissions()
 	}
 
-	//to get user permission for audio and video access
+	//to get user permission for audio,video access and screensharing
 	getPermissions = async () => {
 		try{
 			//get user response and set videoPermitted
@@ -58,6 +60,12 @@ class Meet extends Component {
 			await navigator.mediaDevices.getUserMedia({ audio: true })
 				.then(() => this.audioPermitted = true)
 				.catch(() => this.audioPermitted = false)
+			//set isScreen 
+			if (navigator.mediaDevices.getDisplayMedia) {
+				this.setState({ isScreen: true })
+			} else {
+				this.setState({ isScreen: false })
+			}
 			//if user allows access for atleast one of the devices
 			if (this.videoPermitted || this.audioPermitted) {
 				navigator.mediaDevices.getUserMedia({ video: this.videoPermitted, audio: this.audioPermitted })
@@ -85,7 +93,7 @@ class Meet extends Component {
 		})
 	}
 
-	//media of user
+	//for streaming according to current state
 	getUserMedia = () => {
 		//check if the state variable is true and permission is also granted 
 		//for atleast one of the devices
@@ -115,7 +123,7 @@ class Meet extends Component {
 		//to stream for all connections other then self
 		this.streamForAllConnections(false)
 
-		//when a users turns off video or mutes microphone 
+		//when a user turns off video or mutes microphone 
 		stream.getTracks().forEach(track => track.onended = () => {
 			this.setState({
 				video: false,
@@ -135,14 +143,53 @@ class Meet extends Component {
 				this.streamForAllConnections(true)
 			})
 		})
-
 	}
+	//to share screen if enabled
+	getDislayMedia = () => {
+		if (this.state.screen) {
+			if (navigator.mediaDevices.getDisplayMedia) {
+				navigator.mediaDevices.getDisplayMedia({ video: true, audio: true })
+					.then(this.getDislayMediaSuccess)
+					.then((stream) => {})
+					.catch((e) => console.log(e))
+			}
+		}
+	}
+	//function works similar to getUserMediaSuccess, difference is uses isScreen instead of video and audio
+	getDislayMediaSuccess = (stream) => {
+		try {
+			window.localStream.getTracks().forEach(track => track.stop())
+		} catch(e) { console.log(e) }
 
+		window.localStream = stream
+		this.localVideoref.current.srcObject = stream
+
+		//to stream for all connections other then self
+		this.streamForAllConnections(false)
+
+		//when a user stops sharing screen
+		stream.getTracks().forEach(track => track.onended = () => {
+			this.setState({
+				screen: false,
+			}, () => {
+				try {
+					let tracks = this.localVideoref.current.srcObject.getTracks()
+					tracks.forEach(track => track.stop())
+				} catch(e) { console.log(e) }
+
+				let blackSilence = (...args) => new MediaStream([this.black(...args), this.silence()])
+				window.localStream = blackSilence()
+				this.localVideoref.current.srcObject = window.localStream
+
+				this.getUserMedia()
+			})
+		})
+	}
 	streamForAllConnections =(selfStream)=>{
 		for (let id in connections) {
 			//if selfstream is false, dont stream for same socketId
-			if(!selfStream)
-				if(id === socketId) continue
+			if(id === socketId)
+				if(!selfStream) continue
 
 			connections[id].addStream(window.localStream)
 
@@ -319,9 +366,12 @@ class Meet extends Component {
 		return Object.assign(stream.getVideoTracks()[0], { enabled: false })
 	}
 
-	//if state of video/audio is changed, call getUserMedia
+	//functions to handle camera, mic and screenshare options:
+	//change the state of video/audio and call getUserMedia
 	handleVideo = () => this.setState({ video: !this.state.video }, () => this.getUserMedia())
 	handleAudio = () => this.setState({ audio: !this.state.audio }, () => this.getUserMedia())
+	//change the state of screen and call getDislayMedia
+	handleScreen = () => this.setState({ screen: !this.state.screen }, () => this.getDislayMedia())
 
 	//stop all the tracks and redirect to home page
 	handleEndCall = () => {
@@ -373,6 +423,12 @@ class Meet extends Component {
 							<IconButton style={{ color: "#424242" }} onClick={this.handleAudio}>
 								{this.state.audio === true ? <MicIcon /> : <MicOffIcon />}
 							</IconButton>
+
+							{this.state.isScreen === true ?
+								<IconButton style={{ color: "#424242" }} onClick={this.handleScreen}>
+									{this.state.screen === true ? <ScreenShareIcon /> : <StopScreenShareIcon />}
+								</IconButton>
+							: null}
 						</div>
 
 						<div className="container" id="#container">
