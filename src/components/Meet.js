@@ -2,6 +2,9 @@ import React, { Component } from 'react';
 
 import io from 'socket.io-client'
 
+import { changeCssVideos } from '../utils/videoDimension';
+import { black,silence } from '../utils/blackSilence';
+
 import {IconButton, Input, Button} from '@material-ui/core'
 import CallEndIcon from '@material-ui/icons/CallEnd'
 import VideocamIcon from '@material-ui/icons/Videocam'
@@ -41,6 +44,8 @@ class Meet extends Component {
 		this.state = {
 			video: false,
 			audio: false,
+			screen: false,
+			isScreen: false,
 			isUsername: true,
 			username: "",
 		}
@@ -129,16 +134,7 @@ class Meet extends Component {
 				video: false,
 				audio: false,
 			}, () => {
-				try {
-					//stop the track
-					let tracks = this.localVideoref.current.srcObject.getTracks()
-					tracks.forEach(track => track.stop())
-				} catch(e) { console.log(e) }
-				//videoAudio:to display black color in place of turned off video and silence the audio for muted microphone 
-				let videoAudio = (...args) => new MediaStream([this.black(...args), this.silence()])
-				window.localStream = videoAudio()
-				this.localVideoref.current.srcObject = window.localStream
-
+				this.stopTrack()
 				//update for all connections
 				this.streamForAllConnections(true)
 			})
@@ -172,19 +168,14 @@ class Meet extends Component {
 			this.setState({
 				screen: false,
 			}, () => {
-				try {
-					let tracks = this.localVideoref.current.srcObject.getTracks()
-					tracks.forEach(track => track.stop())
-				} catch(e) { console.log(e) }
-
-				let blackSilence = (...args) => new MediaStream([this.black(...args), this.silence()])
-				window.localStream = blackSilence()
-				this.localVideoref.current.srcObject = window.localStream
-
+				//stop the stream
+				this.stopTrack()
+				//to check if video should be streamed
 				this.getUserMedia()
 			})
 		})
 	}
+	//to stream for all connections
 	streamForAllConnections =(selfStream)=>{
 		for (let id in connections) {
 			//if selfstream is false, dont stream for same socketId
@@ -202,6 +193,18 @@ class Meet extends Component {
 			})
 		}
 	}
+	//to stop streaming
+	stopTrack = ()=>{
+		try {
+			let tracks = this.localVideoref.current.srcObject.getTracks()
+			tracks.forEach(track => track.stop())
+		} catch(e) { console.log(e) }
+		//videoAudio:to display black color for turned off video(black) & silence the audio for muted microphone (silence)
+		let videoAudio = (...args) => new MediaStream([black(...args), silence()])
+		window.localStream = videoAudio()
+		this.localVideoref.current.srcObject = window.localStream
+	}
+
 	//on receiving signal from server
 	gotMessageFromServer = (fromId, message) => {
 		var signal = JSON.parse(message)
@@ -224,40 +227,6 @@ class Meet extends Component {
 				connections[fromId].addIceCandidate(new RTCIceCandidate(signal.ice)).catch(e => console.log(e))
 			}
 		}
-	}
-
-	changeCssVideos = (main) => {
-		let widthMain = main.offsetWidth
-		let minWidth = "30%"
-		if ((widthMain * 30 / 100) < 300) {
-			minWidth = "300px"
-		}
-		let minHeight = "40%"
-		//set height and width according to no. of connections
-		let height = String(100 / elms) + "%"
-		let width = ""
-		if(elms === 0 || elms === 1) {
-			width = "100%"
-			height = "100%"
-		} else if (elms === 2) {
-			width = "45%"
-			height = "100%"
-		} else if (elms === 3 || elms === 4) {
-			width = "35%"
-			height = "50%"
-		} else {
-			width = String(100 / elms) + "%"
-		}
-
-		let videos = main.querySelectorAll("video")
-		for (let a = 0; a < videos.length; ++a) {
-			videos[a].style.minWidth = minWidth
-			videos[a].style.minHeight = minHeight
-			videos[a].style.setProperty("width", width)
-			videos[a].style.setProperty("height", height)
-		}
-
-		return {minWidth, minHeight, width, height}
 	}
 
 	//connect to the socket server
@@ -291,7 +260,7 @@ class Meet extends Component {
 						} else {
 							elms = clients.length
 							let main = document.getElementById('main')
-							let cssProperty = this.changeCssVideos(main)
+							let cssProperty = changeCssVideos(main,elms)
 
 							let video = document.createElement('video')
 
@@ -335,39 +304,14 @@ class Meet extends Component {
 
 					let main = document.getElementById('main')
 					//change the css properties of other videos
-					this.changeCssVideos(main)
+					changeCssVideos(main,elms)
 				}
 			})
 		})
 	}
 
-	//to silence audio of muted user
-	silence = () => {
-		//returns a new AudioContext object.
-		let ctx = new AudioContext()
-		//creates an OscillatorNode, a source representing a periodic waveform
-		let oscillator = ctx.createOscillator()
-		//creates a new MediaStreamAudioDestinationNode object associated with a WebRTC
-		let dst = oscillator.connect(ctx.createMediaStreamDestination())
-		oscillator.start()
-		ctx.resume()
-		//disables the audio stream and return
-		return Object.assign(dst.stream.getAudioTracks()[0], { enabled: false })
-	}
-
-	//turn off video and display black color
-	black = ({ width = 640, height = 480 } = {}) => {
-		//creates a canvas element at the place where video of user was streamed
-		let canvas = Object.assign(document.createElement("canvas"), { width, height })
-		//fills with black
-		canvas.getContext('2d').fillRect(0, 0, width, height)
-		let stream = canvas.captureStream()
-		//disables the audio stream and return
-		return Object.assign(stream.getVideoTracks()[0], { enabled: false })
-	}
-
-	//functions to handle camera, mic and screenshare options:
-	//change the state of video/audio and call getUserMedia
+	/*functions to handle camera, mic and screenshare options:
+	 change the state of video/audio and call getUserMedia */
 	handleVideo = () => this.setState({ video: !this.state.video }, () => this.getUserMedia())
 	handleAudio = () => this.setState({ audio: !this.state.audio }, () => this.getUserMedia())
 	//change the state of screen and call getDislayMedia
@@ -432,7 +376,6 @@ class Meet extends Component {
 						</div>
 
 						<div className="container" id="#container">
-
 							<Row id="main" className="flex-container" style={{ margin: 0, padding: 0 }}>
 								<video id="my-video" ref={this.localVideoref} autoPlay muted style={{
 									margin: "10px",objectFit: "fill",width: "100%",height: "100%"}}></video>
