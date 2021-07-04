@@ -4,6 +4,10 @@ import io from 'socket.io-client'
 
 import {IconButton, Input, Button} from '@material-ui/core'
 import CallEndIcon from '@material-ui/icons/CallEnd'
+import VideocamIcon from '@material-ui/icons/Videocam'
+import VideocamOffIcon from '@material-ui/icons/VideocamOff'
+import MicIcon from '@material-ui/icons/Mic'
+import MicOffIcon from '@material-ui/icons/MicOff'
 import { Row } from 'reactstrap'
 import 'bootstrap/dist/css/bootstrap.css'
 import "./Meet.css"
@@ -108,9 +112,37 @@ class Meet extends Component {
 		window.localStream = stream
 		this.localVideoref.current.srcObject = stream
 		
-		//to stream for all connections
+		//to stream for all connections other then self
+		this.streamForAllConnections(false)
+
+		//when a users turns off video or mutes microphone 
+		stream.getTracks().forEach(track => track.onended = () => {
+			this.setState({
+				video: false,
+				audio: false,
+			}, () => {
+				try {
+					//stop the track
+					let tracks = this.localVideoref.current.srcObject.getTracks()
+					tracks.forEach(track => track.stop())
+				} catch(e) { console.log(e) }
+				//videoAudio:to display black color in place of turned off video and silence the audio for muted microphone 
+				let videoAudio = (...args) => new MediaStream([this.black(...args), this.silence()])
+				window.localStream = videoAudio()
+				this.localVideoref.current.srcObject = window.localStream
+
+				//update for all connections
+				this.streamForAllConnections(true)
+			})
+		})
+
+	}
+
+	streamForAllConnections =(selfStream)=>{
 		for (let id in connections) {
-			if (id === socketId) continue
+			//if selfstream is false, dont stream for same socketId
+			if(!selfStream)
+				if(id === socketId) continue
 
 			connections[id].addStream(window.localStream)
 
@@ -122,9 +154,7 @@ class Meet extends Component {
 					.catch(e => console.log(e))
 			})
 		}
-
 	}
-
 	//on receiving signal from server
 	gotMessageFromServer = (fromId, message) => {
 		var signal = JSON.parse(message)
@@ -237,25 +267,15 @@ class Meet extends Component {
 					if (window.localStream !== undefined && window.localStream !== null) {
 						connections[socketListId].addStream(window.localStream)
 					} else {
+						//video is off
+						let videoAudio = (...args) => new MediaStream([this.black(...args), this.silence()])
+						window.localStream = videoAudio()
+						connections[socketListId].addStream(window.localStream)
 					}
 				})
 				//if we are the joined user 
 				if (id === socketId) {
-					for (let id2 in connections) {
-						if (id2 === socketId) continue
-						//add localstream to other connections
-						try {
-							connections[id2].addStream(window.localStream)
-						} catch(e) {}
-			
-						connections[id2].createOffer().then((description) => {
-							connections[id2].setLocalDescription(description)
-								.then(() => {
-									socket.emit('signal', id2, JSON.stringify({ 'sdp': connections[id2].localDescription }))
-								})
-								.catch(e => console.log(e))
-						})
-					}
+					this.streamForAllConnections(false)
 				}
 			})
 			//when a user leaves meeting
@@ -273,6 +293,36 @@ class Meet extends Component {
 			})
 		})
 	}
+
+	//to silence audio of muted user
+	silence = () => {
+		//returns a new AudioContext object.
+		let ctx = new AudioContext()
+		//creates an OscillatorNode, a source representing a periodic waveform
+		let oscillator = ctx.createOscillator()
+		//creates a new MediaStreamAudioDestinationNode object associated with a WebRTC
+		let dst = oscillator.connect(ctx.createMediaStreamDestination())
+		oscillator.start()
+		ctx.resume()
+		//disables the audio stream and return
+		return Object.assign(dst.stream.getAudioTracks()[0], { enabled: false })
+	}
+
+	//turn off video and display black color
+	black = ({ width = 640, height = 480 } = {}) => {
+		//creates a canvas element at the place where video of user was streamed
+		let canvas = Object.assign(document.createElement("canvas"), { width, height })
+		//fills with black
+		canvas.getContext('2d').fillRect(0, 0, width, height)
+		let stream = canvas.captureStream()
+		//disables the audio stream and return
+		return Object.assign(stream.getVideoTracks()[0], { enabled: false })
+	}
+
+	//if state of video/audio is changed, call getUserMedia
+	handleVideo = () => this.setState({ video: !this.state.video }, () => this.getUserMedia())
+	handleAudio = () => this.setState({ audio: !this.state.audio }, () => this.getUserMedia())
+
 	//stop all the tracks and redirect to home page
 	handleEndCall = () => {
 		try {
@@ -298,24 +348,30 @@ class Meet extends Component {
 				{this.state.isUsername === true ?
 					//page that asks for device permissions and username appears before joining meet
 					<div>
-						<div style={{background: "white", width: "30%", height: "auto", padding: "5px", minWidth: "400px",
-								textAlign: "center", margin: "auto", marginTop: "10px", justifyContent: "center"}}>
+						<div className="username">
 							<p style={{ margin: 0, fontWeight: "bold", paddingRight: "50px" }}>Set your username</p>
 							<Input placeholder="Username" value={this.state.username} onChange={e => this.handleUsername(e)} />
 							<Button variant="contained" color="primary" onClick={this.connect} style={{ margin: "10px" }}>Connect</Button>
 						</div>
 
 						<div className="container-1" style={{ justifyContent: "center", textAlign: "center" }}>
-							<video id="my-video" ref={this.localVideoref} autoPlay muted style={{
-								borderStyle: "solid",borderColor: "#bdbdbd"}}></video>
+							<video id="my-video" ref={this.localVideoref} autoPlay muted ></video>
 						</div>
 					</div>
 					:
 					//meet page
 					<div>
-						<div className="btn-down" style={{ backgroundColor: "whitesmoke", color: "whitesmoke", textAlign: "center" }}>
+						<div className="btn-down">
+							<IconButton style={{ color: "#424242" }} onClick={this.handleVideo}>
+								{(this.state.video === true) ? <VideocamIcon /> : <VideocamOffIcon />}
+							</IconButton>
+
 							<IconButton style={{ color: "#f44336" }} onClick={this.handleEndCall}>
 								<CallEndIcon />
+							</IconButton>
+
+							<IconButton style={{ color: "#424242" }} onClick={this.handleAudio}>
+								{this.state.audio === true ? <MicIcon /> : <MicOffIcon />}
 							</IconButton>
 						</div>
 
@@ -323,8 +379,7 @@ class Meet extends Component {
 
 							<Row id="main" className="flex-container" style={{ margin: 0, padding: 0 }}>
 								<video id="my-video" ref={this.localVideoref} autoPlay muted style={{
-									borderStyle: "solid",borderColor: "#bdbdbd",margin: "10px",objectFit: "fill",
-									width: "100%",height: "100%"}}></video>
+									margin: "10px",objectFit: "fill",width: "100%",height: "100%"}}></video>
 							</Row>
 						</div>
 					</div>
