@@ -5,11 +5,11 @@ let server;
 
 describe("Server testing", function () {
     before((done) => {
-        server = app.listen(3000, done());
+        server = app.listen(4001, done());
     });
 
     it("Check Server", function (done) {
-        var url = "http://localhost:3000/check";
+        var url = "http://localhost:4001/check";
         request.get(url, (error, _response, body) => {
             if (error) done(error);
             expect(body).to.be.an("string");
@@ -20,6 +20,6 @@ describe("Server testing", function () {
     })
 
     after((done) => {
-        server.close(done());
+        app.close(done());
     });
 });
