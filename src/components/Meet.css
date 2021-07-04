@@ -18,12 +18,23 @@
     text-align: center;
 }
 
+.username{
+    background: "white";
+     width: "30%";
+     height: "auto";
+     padding: "5px";
+     min-width: "400px";
+     text-align: "center";
+     margin: "auto";
+     margin-top: "10px";
+     justify-content: "center";
+}
+
 #container{
     height: 80vh;
     width: 80vw;
     max-width: 80vw;
     max-height: 80vh;
-
     align-items: center;
     justify-content: center;
     text-align: center;
@@ -35,4 +46,11 @@
     bottom: 0px;
     width: 100%;
     height: auto;
+    background-color: "whitesmoke";
+    color: "whitesmoke";
+    text-align: "center";
+}
+#my-video{
+    border-style: "solid";
+    border-color: "#bdbdbd"
 }
