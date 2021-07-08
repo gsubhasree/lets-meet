@@ -30,16 +30,6 @@
      justify-content: "center";
 }
 
-#container{
-    height: 80vh;
-    width: 80vw;
-    max-width: 80vw;
-    max-height: 80vh;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-}
-
 .btn-down {
     z-index: 2;
     position: fixed; 
