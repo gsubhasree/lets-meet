@@ -5,15 +5,19 @@ import io from 'socket.io-client'
 import { changeCssVideos } from '../utils/videoDimension';
 import { black,silence } from '../utils/blackSilence';
 
-import {IconButton, Input, Button} from '@material-ui/core'
-import CallEndIcon from '@material-ui/icons/CallEnd'
+import {IconButton, Badge, Input, Button} from '@material-ui/core'
 import VideocamIcon from '@material-ui/icons/Videocam'
 import VideocamOffIcon from '@material-ui/icons/VideocamOff'
 import MicIcon from '@material-ui/icons/Mic'
 import MicOffIcon from '@material-ui/icons/MicOff'
 import ScreenShareIcon from '@material-ui/icons/ScreenShare'
 import StopScreenShareIcon from '@material-ui/icons/StopScreenShare'
+import CallEndIcon from '@material-ui/icons/CallEnd'
+import ChatIcon from '@material-ui/icons/Chat'
+
+
 import { Row } from 'reactstrap'
+import Modal from 'react-bootstrap/Modal'
 import 'bootstrap/dist/css/bootstrap.css'
 import "./Meet.css"
 
@@ -45,7 +49,11 @@ class Meet extends Component {
 			video: false,
 			audio: false,
 			screen: false,
+			showModal: false,
 			isScreen: false,
+			messages: [],
+			message: "",
+			newmessages: 0,
 			isUsername: true,
 			username: "",
 		}
@@ -284,7 +292,7 @@ class Meet extends Component {
 						connections[socketListId].addStream(window.localStream)
 					} else {
 						//video is off
-						let videoAudio = (...args) => new MediaStream([this.black(...args), this.silence()])
+						let videoAudio = (...args) => new MediaStream([black(...args), silence()])
 						window.localStream = videoAudio()
 						connections[socketListId].addStream(window.localStream)
 					}
@@ -294,6 +302,9 @@ class Meet extends Component {
 					this.streamForAllConnections(false)
 				}
 			})
+			
+			socket.on('chat-message', this.addMessage)
+
 			//when a user leaves meeting
 			socket.on('user-left', (id) => {
 				let video = document.querySelector(`[data-socket="${id}"]`)
@@ -325,6 +336,24 @@ class Meet extends Component {
 		} catch (e) {}
 		window.location.href = "/"
 	}
+	openChat = () => this.setState({ showModal: true, newmessages: 0 })
+	closeChat = () => this.setState({ showModal: false })
+	handleMessage = (e) => this.setState({ message: e.target.value })
+	//appends message
+	addMessage = (data, sender, socketIdSender) => {
+		this.setState(prevState => ({
+			messages: [...prevState.messages, { "sender": sender, "data": data }],
+		}))
+		if (socketIdSender !== socketId) {
+			this.setState({ newmessages: this.state.newmessages + 1 })
+		}
+	}
+	
+	sendMessage = () => {
+		socket.emit('chat-message', this.state.message, this.state.username)
+		this.setState({ message: "", sender: this.state.username })
+	}
+
 	//gets username from user input
 	handleUsername = (e) => this.setState({ username: e.target.value })
 
@@ -373,7 +402,30 @@ class Meet extends Component {
 									{this.state.screen === true ? <ScreenShareIcon /> : <StopScreenShareIcon />}
 								</IconButton>
 							: null}
+							<Badge badgeContent={this.state.newmessages} max={999} color="secondary" onClick={this.openChat}>
+								<IconButton style={{ color: "#424242" }} onClick={this.openChat}>
+									<ChatIcon />
+								</IconButton>
+							</Badge>
 						</div>
+
+						<Modal show={this.state.showModal} onHide={this.closeChat} style={{ position: "absolute", bottom: "0px",
+  						right: "0px",zIndex: "999999" }}>
+							<Modal.Header closeButton>
+								<Modal.Title>Chat</Modal.Title>
+							</Modal.Header>
+							<Modal.Body style={{ overflow: "auto", overflowY: "auto", height: "400px", textAlign: "left" }} >
+								{this.state.messages.length > 0 ? this.state.messages.map((item, index) => (
+									<div key={index} style={{textAlign: "left"}}>
+										<p style={{ wordBreak: "break-all" }}><b>{item.sender}</b>: {item.data}</p>
+									</div>
+								)) : <p>No message yet</p>}
+							</Modal.Body>
+							<Modal.Footer className="div-send-msg">
+								<Input placeholder="Message" value={this.state.message} onChange={e => this.handleMessage(e)} />
+								<Button variant="contained" color="primary" onClick={this.sendMessage}>Send</Button>
+							</Modal.Footer>
+						</Modal>
 
 						<div className="container" id="#container">
 							<Row id="main" className="flex-container" style={{ margin: 0, padding: 0 }}>

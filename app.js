@@ -5,12 +5,19 @@ const path= require("path")
 var cors = require('cors')
 const bodyParser = require('body-parser')
 
+var xss = require("xss")
+
 var server = http.createServer(app)
 var io = require('socket.io')(server)
 
 app.use(cors())
 app.use(bodyParser.json())
 
+app.set('port', (process.env.PORT || 4001))
+
+sanitizeString = (str) => {
+	return xss(str)
+}
 app.get('/check', (_req, res)=>{res.status(200).send("Working")})
 
 if(process.env.NODE_ENV==='production'){
@@ -46,6 +53,37 @@ io.on('connection', (socket) => {
 	socket.on('signal', (toId, message) => {
 		io.to(toId).emit('signal', socket.id, message)
 	})
+
+	//handles chat
+	socket.on('chat-message', (data, sender) => {
+		data = sanitizeString(data)
+		sender = sanitizeString(sender)
+
+		var key
+		var valid = false
+
+		for (const [k, v] of Object.entries(connections)) {
+			for(let a = 0; a < v.length; ++a){
+				if(v[a] === socket.id){
+					key = k
+					valid = true
+				}
+			}
+		}
+
+		if(valid === true){
+			if(messages[key] === undefined){
+				messages[key] = []
+			}
+			messages[key].push({"sender": sender, "data": data, "socket-id-sender": socket.id})
+			console.log("message", key, ":", sender, data)
+			//emit for all connections
+			for(let a = 0; a < connections[key].length; ++a){
+				io.to(connections[key][a]).emit("chat-message", data, sender, socket.id)
+			}
+		}
+	})
+
 	//to disconnect from the meet
 	socket.on('disconnect', () => {
 		var key
