@@ -47,6 +47,14 @@ io.on('connection', (socket) => {
 			io.to(connections[path][a]).emit("user-joined", socket.id, connections[path])
 		}
 
+		//to view past messages (sent before joining meet)
+		if(messages[path] !== undefined){
+			for(let a = 0; a < messages[path].length; ++a){
+				io.to(socket.id).emit("chat-message", messages[path][a]['data'], 
+					messages[path][a]['sender'], messages[path][a]['socket-id-sender'])
+			}
+		}
+
 		console.log(path, connections[path])
 	})
 
