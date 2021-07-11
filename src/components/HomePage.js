@@ -46,7 +46,7 @@ class HomePage extends Component {
 		return (
 			<div className="container">	
 				<div>
-					<h1 style={{ fontSize: "45px" }}>Meet</h1>
+					<h1 style={{ fontSize: "45px" }}>Let's Meet!</h1>
 				</div>
 
 				<div style={{
@@ -54,8 +54,8 @@ class HomePage extends Component {
 					textAlign: "center", margin: "auto", marginTop: "100px"
 				}}>
 					<Button variant="contained" color="primary" onClick={this.start} style={{ margin: "20px" }}>Start</Button>
-					<p style={{ margin: 0, fontWeight: "bold" }}>or paste url</p>
-					<Input placeholder="URL" onChange={e => this.handleChange(e)} required/>
+					<p style={{ margin: 0, fontWeight: "bold" }}>OR</p>
+					<Input placeholder="paste url here" onChange={e => this.handleChange(e)} required/>
 					<br></br>
 					<Button variant="contained" color="primary" onClick={this.join} style={{ margin: "20px" }}>Join</Button>
 				</div>

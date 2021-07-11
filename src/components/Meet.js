@@ -37,7 +37,6 @@ var noOfParticipants = 0
 class Meet extends Component {
   	constructor (props) {
 		super(props)
-
 		this.localVideoref = React.createRef()
 
 		//set true if user allows for audio and video access
@@ -211,7 +210,6 @@ class Meet extends Component {
 		window.localStream = videoAudio()
 		this.localVideoref.current.srcObject = window.localStream
 	}
-
 	//on receiving signal from server
 	gotMessageFromServer = (fromId, message) => {
 		var signal = JSON.parse(message)
@@ -239,7 +237,6 @@ class Meet extends Component {
 	//connect to the socket server
 	connectToSocketServer = () => {
 		socket = io.connect(server_url, { secure: true })
-
 		socket.on('signal', this.gotMessageFromServer)
 
 		socket.on('connect', () => {
@@ -284,7 +281,6 @@ class Meet extends Component {
 							main.appendChild(video)
 						}
 					}
-
 					// Add the local video stream
 					if (window.localStream !== undefined && window.localStream !== null) {
 						connections[socketListId].addStream(window.localStream)
@@ -369,6 +365,7 @@ class Meet extends Component {
 					//page that asks for device permissions and username appears before joining meet
 					<div>
 						<div className="username">
+							<br></br>
 							<p style={{ margin: 0, fontWeight: "bold", paddingRight: "50px" }}>Set your username</p>
 							<Input placeholder="Username" value={this.state.username} onChange={e => this.handleUsername(e)} />
 							<Button variant="contained" color="primary" onClick={this.connect} style={{ margin: "10px" }}>Connect</Button>
@@ -386,10 +383,6 @@ class Meet extends Component {
 								{(this.state.video === true) ? <VideocamIcon /> : <VideocamOffIcon />}
 							</IconButton>
 
-							<IconButton style={{ color: "#f44336" }} onClick={this.handleEndCall}>
-								<CallEndIcon />
-							</IconButton>
-
 							<IconButton style={{ color: "#424242" }} onClick={this.handleAudio}>
 								{this.state.audio === true ? <MicIcon /> : <MicOffIcon />}
 							</IconButton>
@@ -399,6 +392,11 @@ class Meet extends Component {
 									{this.state.screen === true ? <ScreenShareIcon /> : <StopScreenShareIcon />}
 								</IconButton>
 							: null}
+							
+							<IconButton style={{ color: "#f44336" }} onClick={this.handleEndCall}>
+								<CallEndIcon />
+							</IconButton>
+
 							<Badge badgeContent={this.state.newmessages} max={999} color="secondary" onClick={this.openChat}>
 								<IconButton style={{ color: "#424242" }} onClick={this.openChat}>
 									<ChatIcon />
@@ -413,8 +411,12 @@ class Meet extends Component {
 							</Modal.Header>
 							<Modal.Body style={{ overflow: "auto", overflowY: "auto", height: "400px", textAlign: "left" }} >
 								{this.state.messages.length > 0 ? this.state.messages.map((item, index) => (
+									index%2 ?
 									<div key={index} style={{textAlign: "left"}}>
-										<p style={{ wordBreak: "break-all" }}><b>{item.sender}</b>: {item.data}</p>
+										<p style={{ wordBreak: "break-all", paddingLeft:"5%" }}><b>{item.sender}</b>: {item.data}</p>
+									</div>:
+									<div key={index} style={{textAlign: "right"}}>
+										<p style={{ wordBreak: "break-all", paddingRight:"5%" }}><b>{item.sender}</b>: {item.data}</p>
 									</div>
 								)) : <p>No message yet</p>}
 							</Modal.Body>
