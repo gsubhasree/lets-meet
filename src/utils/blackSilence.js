@@ -16,7 +16,7 @@ export function silence(){
 export function black({ width = 640, height = 480 } = {}){
     //creates a canvas element at the place where video of user was streamed
     let canvas = Object.assign(document.createElement("canvas"), { width, height })
-    //fills with black
+    //fills a blank rect
     canvas.getContext('2d').fillRect(0, 0, width, height)
     let stream = canvas.captureStream()
     //disables the audio stream and return

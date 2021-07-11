@@ -32,7 +32,7 @@ const peerConnectionConfig = {
 }
 var socket = null
 var socketId = null
-var elms = 0
+var noOfParticipants = 0
 
 class Meet extends Component {
   	constructor (props) {
@@ -108,8 +108,8 @@ class Meet extends Component {
 
 	//for streaming according to current state
 	getUserMedia = () => {
-		//check if the state variable is true and permission is also granted 
-		//for atleast one of the devices
+		/*check if the state variable is true and permission is also granted 
+		for atleast one of the devices */
 		if ((this.state.video && this.videoPermitted) || (this.state.audio && this.audioPermitted)) {
 			navigator.mediaDevices.getUserMedia({ video: this.state.video, audio: this.state.audio })
 				.then(this.getUserMediaSuccess)
@@ -191,7 +191,6 @@ class Meet extends Component {
 				if(!selfStream) continue
 
 			connections[id].addStream(window.localStream)
-
 			connections[id].createOffer().then((description) => {
 				connections[id].setLocalDescription(description)
 					.then(() => {
@@ -207,7 +206,7 @@ class Meet extends Component {
 			let tracks = this.localVideoref.current.srcObject.getTracks()
 			tracks.forEach(track => track.stop())
 		} catch(e) { console.log(e) }
-		//videoAudio:to display black color for turned off video(black) & silence the audio for muted microphone (silence)
+		//videoAudio:to stop playing video & silence the audio for muted microphone (silence)
 		let videoAudio = (...args) => new MediaStream([black(...args), silence()])
 		window.localStream = videoAudio()
 		this.localVideoref.current.srcObject = window.localStream
@@ -266,12 +265,11 @@ class Meet extends Component {
 						if (searchVideo !== null) { // if i don't do this check it makes an empty square
 							searchVideo.srcObject = event.stream
 						} else {
-							elms = clients.length
+							noOfParticipants = clients.length
 							let main = document.getElementById('main')
-							let cssProperty = changeCssVideos(main,elms)
+							let cssProperty = changeCssVideos(main,noOfParticipants)
 
 							let video = document.createElement('video')
-
 							let css = {minWidth: cssProperty.minWidth, minHeight: cssProperty.minHeight, maxHeight: "100%", margin: "10px",
 								borderStyle: "solid", borderColor: "#bdbdbd", objectFit: "fill"}
 							for(let i in css) video.style[i] = css[i]
@@ -309,23 +307,21 @@ class Meet extends Component {
 			socket.on('user-left', (id) => {
 				let video = document.querySelector(`[data-socket="${id}"]`)
 				if (video !== null) {
-					elms--
+					noOfParticipants--
 					//remove the user's video
 					video.parentNode.removeChild(video)
 
 					let main = document.getElementById('main')
 					//change the css properties of other videos
-					changeCssVideos(main,elms)
+					changeCssVideos(main,noOfParticipants)
 				}
 			})
 		})
 	}
 
-	/*functions to handle camera, mic and screenshare options:
-	 change the state of video/audio and call getUserMedia */
+	//functions to handle camera, mic and screenshare options:
 	handleVideo = () => this.setState({ video: !this.state.video }, () => this.getUserMedia())
 	handleAudio = () => this.setState({ audio: !this.state.audio }, () => this.getUserMedia())
-	//change the state of screen and call getDislayMedia
 	handleScreen = () => this.setState({ screen: !this.state.screen }, () => this.getDislayMedia())
 
 	//stop all the tracks and redirect to home page
@@ -339,6 +335,7 @@ class Meet extends Component {
 	openChat = () => this.setState({ showModal: true, newmessages: 0 })
 	closeChat = () => this.setState({ showModal: false })
 	handleMessage = (e) => this.setState({ message: e.target.value })
+	
 	//appends message
 	addMessage = (data, sender, socketIdSender) => {
 		this.setState(prevState => ({

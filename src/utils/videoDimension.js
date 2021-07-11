@@ -1,24 +1,24 @@
-export function changeCssVideos(main,elms) {
+export function changeCssVideos(main,noOfParticipants) {
     let widthMain = main.offsetWidth
     let minWidth = "30%"
     if ((widthMain * 30 / 100) < 300) {
         minWidth = "300px"
     }
     let minHeight = "40%"
-    //set height and width according to no. of connections
-    let height = String(100 / elms) + "%"
+    //set height and width according to no. of participants
+    let height = String(100 / noOfParticipants) + "%"
     let width = ""
-    if(elms === 0 || elms === 1) {
+    if(noOfParticipants === 0 || noOfParticipants === 1) {
         width = "100%"
         height = "100%"
-    } else if (elms === 2) {
+    } else if (noOfParticipants === 2) {
         width = "45%"
         height = "100%"
-    } else if (elms === 3 || elms === 4) {
+    } else if (noOfParticipants === 3 || noOfParticipants === 4) {
         width = "35%"
         height = "50%"
     } else {
-        width = String(100 / elms) + "%"
+        width = String(100 / noOfParticipants) + "%"
     }
 
     let videos = main.querySelectorAll("video")
